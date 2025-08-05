@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -12,19 +11,10 @@ func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Reques
 		"version":     version,
 	}
 
-	// marshal using json.Marshal
-	js, err := json.Marshal(data)
+	err := app.writeJSON(w, http.StatusOK, data, nil)
 	if err != nil {
 		app.logger.Error(err.Error())
 		http.Error(w, "The server encountered a problem and could not process your request", http.StatusInternalServerError)
 		return
 	}
-
-	// Append a newline to the JSON. This is just a small nicety to make it easier to
-	// view in terminal applications.
-	js = append(js, '\n')
-
-	w.Header().Set("Content-Type", "application/json")
-
-	w.Write(js)
 }
