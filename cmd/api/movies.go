@@ -28,7 +28,7 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 		ID:        id,
 		CreatedAt: time.Now(),
 		Title:     "Casino Royale",
-		Runtime:   144,
+		Runtime:   data.Runtime(144),
 		Genres:    []string{"action", "thriller", "spy"},
 		Version:   1,
 	}
