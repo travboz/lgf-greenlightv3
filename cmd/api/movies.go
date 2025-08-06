@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/travboz/greenlightv3/internal/data"
+	"github.com/travboz/greenlightv3/internal/data/validator"
 )
 
 // Add a createMovieHandler for the "POST /v1/movies" endpoint. For now we simply
@@ -24,6 +25,24 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Copy the values from the payload struct to a new Movie struct.
+	movie := &data.Movie{
+		Title:   payload.Title,
+		Year:    payload.Year,
+		Runtime: payload.Runtime,
+		Genres:  payload.Genres,
+	}
+
+	// Initialize a new Validator instance.
+	v := validator.New()
+
+	// Use the Valid() method to see if any of the checks failed. If they did, then use
+	// the failedValidationResponse() helper to send a response to the client, passing
+	// in the v.Errors map.
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
 	fmt.Fprintf(w, "%+v\n", payload)
 }
 
