@@ -5,6 +5,9 @@ run/server/default:
 	@echo "Starting server..."
 	@go run ${ENTRYPOINT_DIR}
 
+.PHONY: run
+run: run/server/default
+
 
 ENTRYPOINT_DIR=./cmd/api
 OUTPUT_BINARY=./bin/greenlight
