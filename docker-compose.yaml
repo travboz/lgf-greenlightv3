@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:15.12-alpine3.21
+    container_name: ${GREENLIGHT_DB_CONTAINER_NAME}
+    environment:
+      POSTGRES_PASSWORD: postgres # Required for the default `postgres` user
+    volumes:
+      - v3-greenlight-pgdb:/var/lib/postgresql/data
+      - ./scripts/init.db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${DB_ACCESS_PORT}:5432"
+    networks:
+      - greenlight
+
+volumes:
+  v3-greenlight-pgdb:
+  
+networks:
+  greenlight:

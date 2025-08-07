@@ -43,6 +43,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
+
 	fmt.Fprintf(w, "%+v\n", payload)
 }
 
