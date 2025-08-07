@@ -1,7 +1,32 @@
+# ==================================================================================== #
+# HELPERS
+# ==================================================================================== #
+
+.PHONY: confirm help
+
+# Create the new confirm target - add to anything destructive or dangerous.
+confirm:
+	@echo 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
+
+## help: prints this help message
+help:
+	@echo 'Usage: '
+	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
+
+## gnerate_secret_key: generate a cryptographically secure random string with an underlying entropy of at least 32 bytes 
+gnerate_secret_key: 
+	openssl rand -hex 32
+
+
+# ==================================================================================== #
+# DEVELOPMENT
+# ==================================================================================== #
+
 include .env
 
 ENTRYPOINT_DIR=./cmd/api
 OUTPUT_BINARY=./bin/greenlight
+MIGRATIONS_PATH=./migrations
 
 .PHONY: run/server/default
 run/server/default:
@@ -62,3 +87,39 @@ pgdb/connect:
 pgdb/connect/independent:
 	@echo "Connecting to pgdb using port..."
 	@psql --host=localhost --port=${DB_ACCESS_PORT} --dbname=greenlight --username=greenlight
+
+
+
+# Migrations
+.PHONY: migrate/create migrate/up migrate/down migrate/version migrate/force
+
+db/migrate/create:
+	@migrate create -seq -ext=.sql -dir=$(MIGRATIONS_PATH) $(filter-out $@,$(MAKECMDGOALS))
+
+## db/migrations/new name=$1: create a new database migration
+db/migrate/new:
+	@echo "Creating migration files for ${name}..."
+	@migrate create -seq -ext=.sql -dir=$(MIGRATIONS_PATH) ${name}
+
+## db/migrate/up: apply all up database migrations
+db/migrate/up: confirm
+	@echo "Running up migrations..."
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) up
+
+db/migrate/down:
+	@echo "Running down migrations..."
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) down $(filter-out $@,$(MAKECMDGOALS))
+
+# e.g. migrate/goto/version 1 -> rolls back to migration 1
+db/migrate/goto/version:
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) goto $(filter-out $@,$(MAKECMDGOALS))
+
+db/migrate/version:
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) version
+
+# Used for cleaning a dirty database.
+# 1st: Manually roll back partial changes to DB - i.e. fix errors in migration in question. 
+# 2nd: Run the below rule with the DB version you want. # eg: migrate -path=./migrations -database=$EXAMPLE_DSN force 1
+db/migrate/force:
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) force $(filter-out $@,$(MAKECMDGOALS))
+
