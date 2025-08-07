@@ -22,6 +22,12 @@ func main() {
 
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
 
+	// Read the connection pool settings from command-line flags into the config struct.
+	// Notice that the default values we're using are the ones we discussed above?
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
+
 	flag.Parse()
 
 	// Initialize a new structured logger which writes log entries to the standard out

@@ -1,16 +1,20 @@
 include .env
 
 ENTRYPOINT_DIR=./cmd/api
+OUTPUT_BINARY=./bin/greenlight
 
 .PHONY: run/server/default
 run/server/default:
 	@echo "Starting server..."
-	@go run ${ENTRYPOINT_DIR}
+	@go run ${ENTRYPOINT_DIR} -port=4000 -env=development -db-dsn=${GREENLIGHT_DB_DSN} -db-max-open-conns=50 -db-max-idle-conns=50 -db-max-idle-time=2h30m
 
 .PHONY: run
 run: run/server/default
 
-OUTPUT_BINARY=./bin/greenlight
+.PHONY: run/binary
+run/binary: build/api
+	@echo "Starting API..."
+	@${OUTPUT_BINARY} -port=4000 -env=development -db-dsn=${GREENLIGHT_DB_DSN} -db-max-open-conns=50 -db-max-idle-conns=50 -db-max-idle-time=2h30m
 
 .PHONY: build/api
 build/api:
