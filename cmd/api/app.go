@@ -1,6 +1,10 @@
 package main
 
-import "log/slog"
+import (
+	"log/slog"
+
+	"github.com/travboz/greenlightv3/internal/data"
+)
 
 // Define an application struct to hold the dependencies for our HTTP handlers, helpers,
 // and middleware. At the moment this only contains a copy of the config struct and a
@@ -8,4 +12,5 @@ import "log/slog"
 type application struct {
 	config config
 	logger *slog.Logger
+	models data.Models
 }

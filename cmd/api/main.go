@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/travboz/greenlightv3/internal/data"
 )
 
 // Declare a string containing the application version number. Later in the book we'll
@@ -51,6 +53,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	srv := &http.Server{
