@@ -25,6 +25,9 @@ db/container/run/postgres:
 .PHONY: postgres
 postgres: db/container/run/postgres
 
+.PHONY: show/dsn
+show/dsn:
+	@echo ${GREENLIGHT_DB_DSN}
 
 # docker commands
 .PHONY: compose/up

@@ -20,13 +20,27 @@ func main() {
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
+	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+
 	flag.Parse()
 
 	// Initialize a new structured logger which writes log entries to the standard out
 	// stream.
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	// Declare an instance of the application struct, containing the config struct and
-	// the logger.
+
+	db, err := openDB(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	// Defer a call to db.Close() so that the connection pool is closed before the
+	// main() function exits.
+	defer db.Close()
+
+	// Also log a message to say that the connection pool has been successfully
+	// established.
+	logger.Info("database connection pool established")
 
 	app := &application{
 		config: cfg,
@@ -44,7 +58,7 @@ func main() {
 
 	logger.Info("starting server", "addr", srv.Addr, "env", cfg.env)
 
-	if err := srv.ListenAndServe(); err != nil {
+	if err = srv.ListenAndServe(); err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}

@@ -5,7 +5,11 @@ package main
 // server to listen on, and the name of the current operating environment for the
 // application (development, staging, production, etc.). We will read in these
 // configuration settings from command-line flags when the application starts.
+// Add db struct field which holds configuration settings for our db connection pool.
 type config struct {
 	port int
 	env  string
+	db   struct {
+		dsn string
+	}
 }
