@@ -173,15 +173,22 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	// Validate the updated movie record, sending the client a 422 Unprocessable Entity
 	// response if any checks fail.
 	v := validator.New()
+
 	if data.ValidateMovie(v, movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	// Pass the updated movie record to our new Update() method.
+	// Intercept any ErrEditConflict error and call the new editConflictResponse()
+	// helper.
 	err = app.models.Movies.Update(movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			app.editConflictResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
