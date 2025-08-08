@@ -130,11 +130,12 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Declare an input struct to hold the expected data from the client.
+	// Use pointers for partial updates and checking for nil value.
 	var payload struct {
-		Title   string       `json:"title"`
-		Year    int32        `json:"year"`
-		Runtime data.Runtime `json:"runtime"`
-		Genres  []string     `json:"genres"`
+		Title   *string       `json:"title"`
+		Year    *int32        `json:"year"`
+		Runtime *data.Runtime `json:"runtime"`
+		Genres  []string      `json:"genres"`
 	}
 
 	// Read the JSON request body data into the input struct.
@@ -146,10 +147,28 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	// Copy the values from the request body to the appropriate fields of the movie
 	// record.
-	movie.Title = payload.Title
-	movie.Year = payload.Year
-	movie.Runtime = payload.Runtime
-	movie.Genres = payload.Genres
+	// If the input.Title value is nil then we know that no corresponding "title" key/
+	// value pair was provided in the JSON request body. So we move on and leave the
+	// movie record unchanged. Otherwise, we update the movie record with the new title
+	// value. Importantly, because input.Title is a now a pointer to a string, we need
+	// to dereference the pointer using the * operator to get the underlying value
+	// before assigning it to our movie record.
+	if payload.Title != nil {
+		movie.Title = *payload.Title
+	}
+
+	// We also do the same for the other fields in the input struct.
+	if payload.Year != nil {
+		movie.Year = *payload.Year
+	}
+
+	if payload.Runtime != nil {
+		movie.Runtime = *payload.Runtime
+	}
+
+	if payload.Genres != nil {
+		movie.Genres = payload.Genres // Note that we don't need to dereference a slice.
+	}
 
 	// Validate the updated movie record, sending the client a 422 Unprocessable Entity
 	// response if any checks fail.
