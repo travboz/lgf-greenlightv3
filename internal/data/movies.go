@@ -10,6 +10,10 @@ import (
 	"github.com/travboz/greenlightv3/internal/data/validator"
 )
 
+var (
+	DatabaseTimeout = 3 * time.Second
+)
+
 type Movie struct {
 	ID        int64     `json:"id"`                // Unique integer ID for the movie
 	CreatedAt time.Time `json:"-"`                 // Timestamp for when the movie is added to our database; hide it so it doesn't show in the json output
@@ -65,7 +69,7 @@ func (m MovieModel) Insert(movie *Movie) error {
 	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
 
 	// Create a context with a 3-second timeout.ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DatabaseTimeout)
 	defer cancel()
 
 	// Use the QueryRow() method to execute the SQL query on our connection pool,
@@ -95,7 +99,7 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 	// Use the context.WithTimeout() function to create a context.Context which carries a
 	// 3-second timeout deadline. Note that we're using the empty context.Background()
 	// as the 'parent' context.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DatabaseTimeout)
 
 	// Importantly, use defer to make sure that we cancel the context before the Get()
 	// method returns.
@@ -155,7 +159,7 @@ func (m MovieModel) Update(movie *Movie) error {
 	}
 
 	// Create a context with a 3-second timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DatabaseTimeout)
 	defer cancel()
 
 	// Use the QueryRow() method to execute the query, passing in the args slice as a
@@ -185,7 +189,7 @@ func (m MovieModel) Delete(id int64) error {
 	WHERE id = $1`
 
 	// Create a context with a 3-second timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), DatabaseTimeout)
 	defer cancel()
 
 	// Execute the SQL query using the Exec() method, passing in the id variable as
