@@ -11,7 +11,13 @@ import (
 )
 
 var (
-	DatabaseTimeout = 3 * time.Second
+	DatabaseTimeout             = 3 * time.Second
+	FullTextSearchEnglishConfig = `
+	SELECT id, created_at, title, year, runtime, genres, version
+	FROM movies
+	WHERE (to_tsvector('english', title) @@ plainto_tsquery('english', $1) OR $1 = '')
+	AND (genres @> $2 OR $2 = '{}')
+	ORDER BY id;`
 )
 
 type Movie struct {
@@ -225,7 +231,7 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	SELECT id, created_at, title, year, runtime, genres, version
 	FROM movies
 	WHERE (
-		LOWER(title) = LOWER($1) OR $1 = ''
+		to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = ''
 	)
 	AND (
 		genres @> $2 OR $2 = '{}'
