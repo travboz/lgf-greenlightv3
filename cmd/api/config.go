@@ -17,6 +17,7 @@ type config struct {
 	env     string
 	db      dbConfig
 	limiter limiterConfig
+	smtp    smtpConfig
 }
 
 type dbConfig struct {
@@ -37,4 +38,12 @@ type limiterConfig struct {
 
 func LoadEnv() error {
 	return godotenv.Load()
+}
+
+type smtpConfig struct {
+	host     string
+	port     int
+	username string
+	password string
+	sender   string
 }
