@@ -227,12 +227,12 @@ func (m MovieModel) Delete(id int64) error {
 // Create a new GetAll() method which returns a slice of movies. Although we're not
 // using them right now, we've set this up to accept the various filter parameters as
 // arguments.
-func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, error) {
+func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, Metadata, error) {
 	// Add an ORDER BY clause and interpolate the sort column and direction. Importantly
 	// notice that we also include a secondary sort on the movie ID to ensure a
 	// consistent ordering.
 	query := fmt.Sprintf(`
-	SELECT id, created_at, title, year, runtime, genres, version
+	SELECT count(*) OVER(), id, created_at, title, year, runtime, genres, version
 	FROM movies
 	WHERE (
 		to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = ''
@@ -260,13 +260,15 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	// Pass the title and genres as the placeholder parameter values.
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, Metadata{}, err // Update this to return an empty Metadata struct.
 	}
 
 	// Importantly, defer a call to rows.Close() to ensure that the resultset is closed
 	// before GetAll() returns.
 	defer rows.Close()
 
+	// Declare a totalRecords variable.
+	totalRecords := 0
 	movies := []*Movie{}
 
 	// Use rows.Next to iterate through the rows in the resultset.
@@ -277,6 +279,7 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 		// Scan the values from the row into the Movie struct. Again, note that we're
 		// using the pq.Array() adapter on the genres field here.
 		err := rows.Scan(
+			&totalRecords, // Scan the count from the window function into totalRecords.
 			&movie.ID,
 			&movie.CreatedAt,
 			&movie.Title,
@@ -286,7 +289,7 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 			&movie.Version,
 		)
 		if err != nil {
-			return nil, err
+			return nil, Metadata{}, err // Update this to return an empty Metadata struct.
 		}
 
 		// Append the fetched movie
@@ -296,9 +299,14 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	// When the rows.Next() loop has finished, call rows.Err() to retrieve any error
 	// that was encountered during the iteration.
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, Metadata{}, err // Update this to return an empty Metadata struct.
 	}
 
+	// Generate a Metadata struct, passing in the total record count and pagination
+	// parameters from the client.
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
 	// If everything went OK, then return the slice of movies.
-	return movies, nil
+	// Include the metadata struct when returning.
+	return movies, metadata, nil
 }
