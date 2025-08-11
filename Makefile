@@ -101,9 +101,6 @@ pgdb/connect/independent:
 # Migrations
 .PHONY: migrate/create migrate/up migrate/down migrate/version migrate/force
 
-db/migrate/create:
-	@migrate create -seq -ext=.sql -dir=$(MIGRATIONS_PATH) $(filter-out $@,$(MAKECMDGOALS))
-
 ## db/migrations/new name=$1: create a new database migration
 db/migrate/new:
 	@echo "Creating migration files for ${name}..."
@@ -114,6 +111,7 @@ db/migrate/up: confirm
 	@echo "Running up migrations..."
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) up
 
+## db/migrate/down: apply all down migrations
 db/migrate/down:
 	@echo "Running down migrations..."
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) down $(filter-out $@,$(MAKECMDGOALS))
@@ -122,6 +120,7 @@ db/migrate/down:
 db/migrate/goto/version:
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) goto $(filter-out $@,$(MAKECMDGOALS))
 
+## db/migrate/version: show current migration version
 db/migrate/version:
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) version
 
