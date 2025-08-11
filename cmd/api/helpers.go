@@ -214,8 +214,14 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 
 // background() runs any given function in the background and accepts some arbitrary function as a param.
 func (app *application) background(fn func()) {
+	// Increment the WaitGroup counter.
+	app.bwg.Add(1)
+
 	// Start a new goroutine so the work runs in the background.
 	go func() {
+		// Use defer to decrement the WaitGroup counter before the goroutine returns.
+		defer app.bwg.Done()
+
 		// Make sure the program doesn't crash if the function causes a panic.
 		// If there is a panic, log the error instead.
 		defer func() {
