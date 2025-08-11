@@ -123,3 +123,8 @@ db/migrate/version:
 db/migrate/force:
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) force $(filter-out $@,$(MAKECMDGOALS))
 
+BASE_URL=http://localhost:4000
+
+# Testing rate limiter
+test/ratelimiter:
+	@for i in {1..6}; do curl ${BASE_URL}/v1/healthcheck; done

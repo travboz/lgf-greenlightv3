@@ -27,6 +27,6 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.updateMovieHandler) // partial updates on a resource = PATCH HTTP method, so change from PUT to PATCH
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.deleteMovieHandler)
 
-	// Return the httprouter instance, wrapped in recovery middleware
-	return app.recoverPanic(router)
+	// Return the httprouter instance, wrapped in recovery middleware - wrap with rate limiter middleware
+	return app.recoverPanic(app.rateLimit(router))
 }
