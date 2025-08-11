@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"sync"
 
 	"golang.org/x/time/rate"
 )
@@ -36,7 +38,7 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (app *application) rateLimit(next http.Handler) http.Handler {
+func (app *application) globalRateLimit(next http.Handler) http.Handler {
 	// Initialize a new rate limiter which allows an average of 2 requests per second,
 	// with a maximum of 4 requests in a single ‘burst’.
 	limiter := rate.NewLimiter(2, 4)
@@ -54,4 +56,48 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (app *application) rateLimit(next http.Handler) http.Handler {
+	// Declare a mutex and a map to hold the clients' IP addresses and rate limiters.
+	var (
+		mu      sync.Mutex
+		clients = make(map[string]*rate.Limiter)
+	)
+
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		// Extract the client's IP address from the request.
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// Lock the mutex to prevent this code from being executed concurrently.
+		mu.Lock()
+
+		// Check to see if the IP address already exists in the map. If it doesn't, then
+		// initialize a new rate limiter and add the IP address and limiter to the map.
+		if _, found := clients[ip]; !found {
+			clients[ip] = rate.NewLimiter(2, 4)
+		}
+
+		// Case: not allowed to make another request
+		if !clients[ip].Allow() {
+			mu.Unlock()
+			app.rateLimitExceededResponse(w, r)
+			return
+		}
+
+		// Case: haven't reached their limit, can make more requests
+		// Very importantly, unlock the mutex before calling the next handler in the
+		// chain. Notice that we DON'T use defer to unlock the mutex, as that would mean
+		// that the mutex isn't unlocked until all the handlers downstream of this
+		// middleware have also returned.
+		mu.Unlock()
+
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
 }
