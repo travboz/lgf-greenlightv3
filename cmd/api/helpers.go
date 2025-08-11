@@ -211,3 +211,20 @@ func (app *application) readInt(qs url.Values, key string, defaultValue int, v *
 	// Otherwise, return the converted integer value.
 	return i
 }
+
+// background() runs any given function in the background and accepts some arbitrary function as a param.
+func (app *application) background(fn func()) {
+	// Start a new goroutine so the work runs in the background.
+	go func() {
+		// Make sure the program doesn't crash if the function causes a panic.
+		// If there is a panic, log the error instead.
+		defer func() {
+			if err := recover(); err != nil {
+				app.logger.Error(fmt.Sprintf("%v", err))
+			}
+		}()
+
+		// Run the function that was passed in.
+		fn()
+	}()
+}
