@@ -69,9 +69,9 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 	// Declare a mutex and a map to hold the clients' IP addresses and rate limiters.
 	var (
-		mu                sync.Mutex
-		clients           = make(map[string]*client)
-		ClientCleanupTime = 3 * time.Minute
+		mu      sync.Mutex
+		clients = make(map[string]*client)
+		// ClientCleanupTime = 3 * time.Minute
 	)
 
 	// Launch a background goroutine which removes old entries from the clients map once
@@ -87,7 +87,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 			// Loop through all clients. If they haven't been seen within the last three
 			// minutes, delete the corresponding entry from the map.
 			for ip, client := range clients {
-				if time.Since(client.lastSeen) > ClientCleanupTime {
+				if time.Since(client.lastSeen) > 3*time.Minute {
 					delete(clients, ip)
 				}
 			}
@@ -98,36 +98,47 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	}()
 
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		// Extract the client's IP address from the request.
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			app.serverErrorResponse(w, r, err)
-			return
-		}
+		// Only carry out the check if rate limiting is enabled.
+		if app.config.limiter.enabled {
+			// Extract the client's IP address from the request.
+			ip, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err != nil {
+				app.serverErrorResponse(w, r, err)
+				return
+			}
 
-		// Lock the mutex to prevent this code from being executed concurrently.
-		mu.Lock()
+			// Lock the mutex to prevent this code from being executed concurrently.
+			mu.Lock()
 
-		// Check to see if the IP address already exists in the map. If it doesn't, then
-		// initialize a new rate limiter and add the IP address and limiter to the map.
-		if _, found := clients[ip]; !found {
-			// Create and add a new client struct to the map if it doesn't already exist.
-			clients[ip] = &client{limiter: rate.NewLimiter(2, 4)}
-		}
+			// Check to see if the IP address already exists in the map. If it doesn't, then
+			// initialize a new rate limiter and add the IP address and limiter to the map.
+			if _, found := clients[ip]; !found {
+				// Create and add a new client struct to the map if it doesn't already exist.
+				clients[ip] = &client{
+					limiter: rate.NewLimiter(
+						rate.Limit(app.config.limiter.rps),
+						app.config.limiter.burst),
+				}
+			}
 
-		// Case: not allowed to make another request
-		if !clients[ip].limiter.Allow() {
+			// Update the last seen time for the client.
+			clients[ip].lastSeen = time.Now()
+
+			// Case: not allowed to make another request
+			if !clients[ip].limiter.Allow() {
+				mu.Unlock()
+				app.rateLimitExceededResponse(w, r)
+				return
+			}
+
+			// Case: haven't reached their limit, can make more requests
+			// Very importantly, unlock the mutex before calling the next handler in the
+			// chain. Notice that we DON'T use defer to unlock the mutex, as that would mean
+			// that the mutex isn't unlocked until all the handlers downstream of this
+			// middleware have also returned.
 			mu.Unlock()
-			app.rateLimitExceededResponse(w, r)
-			return
-		}
 
-		// Case: haven't reached their limit, can make more requests
-		// Very importantly, unlock the mutex before calling the next handler in the
-		// chain. Notice that we DON'T use defer to unlock the mutex, as that would mean
-		// that the mutex isn't unlocked until all the handlers downstream of this
-		// middleware have also returned.
-		mu.Unlock()
+		}
 
 		next.ServeHTTP(w, r)
 	}

@@ -31,7 +31,7 @@ MIGRATIONS_PATH=./migrations
 .PHONY: run/server/default
 run/server/default:
 	@echo "Starting server..."
-	@go run ${ENTRYPOINT_DIR} -port=4000 -env=development -db-dsn=${GREENLIGHT_DB_DSN} -db-max-open-conns=50 -db-max-idle-conns=50 -db-max-idle-time=2h30m
+	@go run ${ENTRYPOINT_DIR} -port=4000 -env=development -db-dsn=${GREENLIGHT_DB_DSN} -db-max-open-conns=50 -db-max-idle-conns=50 -db-max-idle-time=2h30m -limiter-burst=2 
 
 .PHONY: run
 run: run/server/default
@@ -39,7 +39,15 @@ run: run/server/default
 .PHONY: run/binary
 run/binary: build/api
 	@echo "Starting API..."
-	@${OUTPUT_BINARY} -port=4000 -env=development -db-dsn=${GREENLIGHT_DB_DSN} -db-max-open-conns=50 -db-max-idle-conns=50 -db-max-idle-time=2h30m
+	@${OUTPUT_BINARY} \
+		-port=4000 \
+		-env=development \
+		-limiter-burst=2 \
+		-db-dsn=${GREENLIGHT_DB_DSN} \
+		-db-max-open-conns=50 \
+		-db-max-idle-conns=50 \
+		-db-max-idle-time=2h30m 
+
 
 .PHONY: build/api
 build/api:
