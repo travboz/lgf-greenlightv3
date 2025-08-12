@@ -27,11 +27,10 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/v1/movies/:id", app.updateMovieHandler) // partial updates on a resource = PATCH HTTP method, so change from PUT to PATCH
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.deleteMovieHandler)
 
-	// Add the route for the POST /v1/users endpoint.
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
-	// Add the route for the PUT /v1/users/activated endpoint.
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
 
-	// Return the httprouter instance, wrapped in recovery middleware - wrap with rate limiter middleware
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthenticationTokenHandler)
+
 	return app.recoverPanic(app.rateLimit(router))
 }
