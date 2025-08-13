@@ -322,3 +322,14 @@ func (app *application) requirePermission(code string, next http.HandlerFunc) ht
 	// So we call requireAuthenticatedUser -> requireActivatedUser -> finally requirePermissionCode
 	return app.requireActivatedUser(fn)
 }
+
+// Enable ALL origins
+func (app *application) enableCORS(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		next.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
