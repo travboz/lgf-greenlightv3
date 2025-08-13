@@ -293,3 +293,32 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 
 	// 1st runs then our 2nd middleare does.
 }
+
+func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		// Retrieve the user from the request context.
+		user := app.contextGetUser(r)
+
+		// Fetch the permissions the user has
+		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// Check if they have the required permission. If they don't, then
+		// return a 403 Forbidden response.
+		if !permissions.Include(code) {
+			app.notPermittedResponse(w, r)
+			return
+		}
+
+		// Otherwise they have the required permission so we call the next handler in
+		// the chain.
+		next.ServeHTTP(w, r)
+	}
+
+	// Wrap this with the requireActivatedUser() middleware before returning it.
+	// So we call requireAuthenticatedUser -> requireActivatedUser -> finally requirePermissionCode
+	return app.requireActivatedUser(fn)
+}
