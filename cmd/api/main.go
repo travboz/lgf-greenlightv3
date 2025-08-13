@@ -3,6 +3,7 @@ package main
 import (
 	"expvar"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -12,12 +13,15 @@ import (
 
 	"github.com/travboz/greenlightv3/internal/data"
 	"github.com/travboz/greenlightv3/internal/mailer"
+	"github.com/travboz/greenlightv3/internal/vcs"
 )
 
 // Declare a string containing the application version number. Later in the book we'll
 // generate this automatically at build time, but for now we'll just store the version
 // number as a hard-coded global constant.
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 func main() {
 
@@ -64,7 +68,17 @@ func main() {
 		return nil
 	})
 
+	// Create a new version boolean flag with the default value of false.
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	// If the version flag value is true, then print out the version number and
+	// immediately exit.
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	// Initialize a new structured logger which writes log entries to the standard out
 	// stream.
