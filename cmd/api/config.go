@@ -18,6 +18,7 @@ type config struct {
 	db      dbConfig
 	limiter limiterConfig
 	smtp    smtpConfig
+	cors    corsConfig
 }
 
 type dbConfig struct {
@@ -46,4 +47,8 @@ type smtpConfig struct {
 	username string
 	password string
 	sender   string
+}
+
+type corsConfig struct {
+	trustedOrigins []string
 }
