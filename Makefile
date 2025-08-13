@@ -130,6 +130,11 @@ db/migrate/version:
 db/migrate/force:
 	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) force $(filter-out $@,$(MAKECMDGOALS))
 
+db/populate:
+	@echo "Seeding database..."
+	# todo
+	@echo "Done."
+
 BASE_URL=http://localhost:4000
 
 # Testing rate limiter
