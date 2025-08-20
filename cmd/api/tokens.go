@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/travboz/greenlightv3/internal/data"
 	"github.com/travboz/greenlightv3/internal/data/validator"
+
+	"github.com/pascaldekloe/jwt"
 )
 
 func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -214,6 +217,90 @@ func (app *application) createActivationTokenHandler(w http.ResponseWriter, r *h
 	env := envelope{"message": "an email will be sent to you containing activation instructions"}
 
 	err = app.writeJSON(w, http.StatusAccepted, env, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// JWT implementation
+
+func (app *application) createAuthenticationJWTHandler(w http.ResponseWriter, r *http.Request) {
+	// parse the email and password from the request body
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := app.readJSON(w, r, &payload)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	// validate email and password
+	v := validator.New()
+
+	data.ValidateEmail(v, payload.Email)
+	data.ValidatePasswordPlaintext(v, payload.Password)
+
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	// Lookup the user record based on the email address. If no matching user was
+	// found, then we call the app.invalidCredentialsResponse() helper to send a 401
+	// Unauthorized response to the client (we will create this helper in a moment).
+	user, err := app.models.Users.GetByEmail(payload.Email)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.invalidCredentialsResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	// Check if the provided password matches the actual password for the user.
+	match, err := user.Password.Matches(payload.Password)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// If the passwords don't match, then we call the app.invalidCredentialsResponse()
+	// helper again and return.
+	if !match {
+		app.invalidCredentialsResponse(w, r)
+		return
+	}
+
+	// JWT implementation
+	// Create a JWT claims struct containing the user ID as the subject, with an issued
+	// time of now and validity window of the next 24 hours. We also set the issuer and
+	// audience to a unique identifier for our application.
+	var claims jwt.Claims
+
+	// Set the claims
+	claims.Subject = strconv.FormatInt(user.ID, 10)
+	claims.Issued = jwt.NewNumericTime(time.Now())
+	claims.NotBefore = jwt.NewNumericTime(time.Now())
+	claims.Expires = jwt.NewNumericTime(time.Now().Add(24 * time.Hour))
+	claims.Issuer = "greenlight.travboz.net"
+	claims.Audiences = []string{"greenlight.travboz.net"}
+
+	// Sign the JWT claims using the HMAC-SHA256 algorithm and the secret key from the
+	// application config. This returns a []byte slice containing the JWT as a base64-
+	// encoded string.
+	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secret))
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// Convert the []byte slice to a string and return it in a JSON response.
+	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token": string(jwtBytes)}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

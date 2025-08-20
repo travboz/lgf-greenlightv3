@@ -19,6 +19,7 @@ type config struct {
 	limiter limiterConfig
 	smtp    smtpConfig
 	cors    corsConfig
+	jwt     jwtConfig
 }
 
 type dbConfig struct {
@@ -51,4 +52,8 @@ type smtpConfig struct {
 
 type corsConfig struct {
 	trustedOrigins []string
+}
+
+type jwtConfig struct {
+	secret string // JWT signing secret
 }

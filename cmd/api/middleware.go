@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pascaldekloe/jwt"
 	"github.com/tomasen/realip"
 	"github.com/travboz/greenlightv3/internal/data"
-	"github.com/travboz/greenlightv3/internal/data/validator"
 	"golang.org/x/time/rate"
 )
 
@@ -150,21 +150,88 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func (app *application) authenticate(next http.Handler) http.Handler {
+// func (app *application) authenticate(next http.Handler) http.Handler {
+// 	fn := func(w http.ResponseWriter, r *http.Request) {
+// 		// Add the "Vary: Authorization" header to the response. This indicates to any
+// 		// caches that the response may vary based on the value of the Authorization
+// 		// header in the request.
+// 		w.Header().Add("Vary", "Authorization")
+
+// 		// Retrieve the value of the Authorization header from the request. This will
+// 		// return the empty string "" if there is no such header found.
+// 		authorizationHeader := r.Header.Get("Authorization")
+
+// 		// If there is no Authorization header found, use the contextSetUser() helper
+// 		// that we just made to add the AnonymousUser to the request context. Then we
+// 		// call the next handler in the chain and return without executing any of the
+// 		// code below.
+// 		if authorizationHeader == "" {
+// 			r = app.contextSetUser(r, data.AnonymousUser)
+// 			next.ServeHTTP(w, r)
+// 			return
+// 		}
+
+// 		// Otherwise, we expect the value of the Authorization header to be in the format
+// 		// "Bearer <token>". We try to split this into its constituent parts, and if the
+// 		// header isn't in the expected format we return a 401 Unauthorized response
+// 		// using the invalidAuthenticationTokenResponse() helper (which we will create
+// 		// in a moment).
+// 		headerParts := strings.Split(authorizationHeader, " ")
+// 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+// 			app.invalidAuthenticationTokenResponse(w, r)
+// 			return
+// 		}
+
+// 		// Extract the actual authentication token from the headee parts
+// 		token := headerParts[1]
+
+// 		// Validate the token to make sure it is in a sensible format.
+// 		v := validator.New()
+
+// 		// If the token isn't valid, use the invalidAuthenticationTokenResponse()
+// 		// helper to send a response, rather than the failedValidationResponse() helper
+// 		// that we'd normally use.
+// 		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+// 			app.invalidAuthenticationTokenResponse(w, r)
+// 			return
+// 		}
+
+// 		// Retrieve the details of the user associated with the authentication token,
+// 		// again calling the invalidAuthenticationTokenResponse() helper if no
+// 		// matching record was found. IMPORTANT: Notice that we are using
+// 		// ScopeAuthentication as the first parameter here.
+// 		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+// 		if err != nil {
+// 			switch {
+// 			case errors.Is(err, data.ErrRecordNotFound):
+// 				app.invalidAuthenticationTokenResponse(w, r)
+// 			default:
+// 				app.serverErrorResponse(w, r, err)
+// 			}
+
+// 			return
+// 		}
+
+// 		// Call the contextSetUser() helper to add the user information to the request
+// 		// context.
+// 		r = app.contextSetUser(r, user)
+
+// 		// Call the next handler in the chain.
+// 		next.ServeHTTP(w, r)
+// 	}
+
+// 	return http.HandlerFunc(fn)
+// }
+
+func (app *application) authenticateJWT(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		// Add the "Vary: Authorization" header to the response. This indicates to any
 		// caches that the response may vary based on the value of the Authorization
 		// header in the request.
 		w.Header().Add("Vary", "Authorization")
 
-		// Retrieve the value of the Authorization header from the request. This will
-		// return the empty string "" if there is no such header found.
 		authorizationHeader := r.Header.Get("Authorization")
 
-		// If there is no Authorization header found, use the contextSetUser() helper
-		// that we just made to add the AnonymousUser to the request context. Then we
-		// call the next handler in the chain and return without executing any of the
-		// code below.
 		if authorizationHeader == "" {
 			r = app.contextSetUser(r, data.AnonymousUser)
 			next.ServeHTTP(w, r)
@@ -172,10 +239,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		}
 
 		// Otherwise, we expect the value of the Authorization header to be in the format
-		// "Bearer <token>". We try to split this into its constituent parts, and if the
-		// header isn't in the expected format we return a 401 Unauthorized response
-		// using the invalidAuthenticationTokenResponse() helper (which we will create
-		// in a moment).
+		// "Bearer <token>".
 		headerParts := strings.Split(authorizationHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
 			app.invalidAuthenticationTokenResponse(w, r)
@@ -185,22 +249,43 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		// Extract the actual authentication token from the headee parts
 		token := headerParts[1]
 
-		// Validate the token to make sure it is in a sensible format.
-		v := validator.New()
-
-		// If the token isn't valid, use the invalidAuthenticationTokenResponse()
-		// helper to send a response, rather than the failedValidationResponse() helper
-		// that we'd normally use.
-		if data.ValidateTokenPlaintext(v, token); !v.Valid() {
+		// Parse and extract claims.
+		// Returns an error if JWT contents don't match the signature/secret key.
+		claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secret))
+		if err != nil {
 			app.invalidAuthenticationTokenResponse(w, r)
 			return
 		}
 
-		// Retrieve the details of the user associated with the authentication token,
-		// again calling the invalidAuthenticationTokenResponse() helper if no
-		// matching record was found. IMPORTANT: Notice that we are using
-		// ScopeAuthentication as the first parameter here.
-		user, err := app.models.Users.GetForToken(data.ScopeAuthentication, token)
+		// Check if the JWT is still valid at this moment in time.
+		if !claims.Valid(time.Now()) {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Check that the issuer is our application.
+		if claims.Issuer != "greenlight.travboz.net" {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// Check that our application is in the expected audiences for the JWT.
+		if !claims.AcceptAudience("greenlight.travboz.net") {
+			app.invalidAuthenticationTokenResponse(w, r)
+			return
+		}
+
+		// At this point, we know that the JWT is all OK and we can trust the data in
+		// it. We extract the user ID from the claims subject and convert it from a
+		// string into an int64.
+		userID, err := strconv.ParseInt(claims.Subject, 10, 64)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		// Lookup the user record from the database.
+		user, err := app.models.Users.GetById(userID)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrRecordNotFound):
@@ -208,7 +293,6 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			default:
 				app.serverErrorResponse(w, r, err)
 			}
-
 			return
 		}
 

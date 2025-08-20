@@ -41,6 +41,7 @@ run/server/default:
 		-limiter-burst=2 \
 		-limiter-enabled=false \
 		-cors-trusted-origins="https://www.example.com https://staging.example.com"
+		-jwt-secret=${JWT_SECRET}
 
 ## run: run the application
 .PHONY: run
