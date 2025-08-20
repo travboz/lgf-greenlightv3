@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/travboz/greenlightv3/internal/data"
-	"github.com/travboz/greenlightv3/internal/mailer"
 	"github.com/travboz/greenlightv3/internal/vcs"
 )
 
@@ -49,12 +47,7 @@ func main() {
 
 	publishMetrics(db)
 
-	app := &application{
-		config: cfg,
-		logger: logger,
-		models: data.NewModels(db),
-		mailer: mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
-	}
+	app := NewApplication(cfg, logger, db)
 
 	// Start server with app.serve()
 	err = app.serve()
