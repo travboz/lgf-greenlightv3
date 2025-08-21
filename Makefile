@@ -47,6 +47,11 @@ run/server/default:
 .PHONY: run
 run: run/server/default
 
+## setup: setup and dependencies for the application
+.PHONY: setup
+# setup: compose/up db/migrations/up db/populate
+setup: compose/up
+
 .PHONY: run/binary
 run/binary: build/api
 	@echo "Starting API..."
