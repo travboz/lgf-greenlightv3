@@ -6,14 +6,14 @@ include .env
 
 .PHONY: confirm help
 
-# Create the new confirm target - add to anything destructive or dangerous.
-confirm:
-	@echo 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
-
 ## help: prints this help message
 help:
 	@echo 'Usage: '
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
+
+# Create the new confirm target - add to anything destructive or dangerous.
+confirm:
+	@echo 'Are you sure? [y/N] ' && read ans && [ $${ans:-N} = y ]
 
 # generate_secret_key: generate a cryptographically secure random string with an underlying entropy of at least 32 bytes 
 generate_secret_key: 
@@ -31,17 +31,7 @@ MIGRATIONS_PATH=./migrations
 .PHONY: run/server/default
 run/server/default:
 	@echo "Starting server..."
-	@go run ${ENTRYPOINT_DIR} \
-		-port=4000 \
-		-env=development \
-		-db-dsn=${GREENLIGHT_DB_DSN} \
-		-db-max-open-conns=50 \
-		-db-max-idle-conns=50 \
-		-db-max-idle-time=2h30m \
-		-limiter-burst=2 \
-		-limiter-enabled=false \
-		-cors-trusted-origins="https://www.example.com https://staging.example.com"
-		-jwt-secret=${JWT_SECRET}
+	@go run ${ENTRYPOINT_DIR}
 
 ## run: run the application
 .PHONY: run
@@ -55,14 +45,7 @@ setup: compose/up
 .PHONY: run/binary
 run/binary: build/api
 	@echo "Starting API..."
-	@${OUTPUT_BINARY} \
-		-port=4000 \
-		-env=development \
-		-limiter-burst=2 \
-		-db-dsn=${GREENLIGHT_DB_DSN} \
-		-db-max-open-conns=50 \
-		-db-max-idle-conns=50 \
-		-db-max-idle-time=2h30m 
+	@${OUTPUT_BINARY}
 
 .PHONY: db/container/run/postgres
 db/container/run/postgres:
@@ -125,30 +108,30 @@ db/migrations/new:
 .PHONY: db/migrations/up
 db/migrations/up: confirm
 	@echo "Running up migrations..."
-	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) up
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(MIGRATIONS_DSN) up
 
 ## db/migrations/down: apply all down migrations
 .PHONY: db/migrations/down
 db/migrations/down:
 	@echo "Running down migrations..."
-	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) down $(filter-out $@,$(MAKECMDGOALS))
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(MIGRATIONS_DSN) down $(filter-out $@,$(MAKECMDGOALS))
 
 # e.g. migrate/goto/version 1 -> rolls back to migration 1
 .PHONY: db/migrations/goto/version
 db/migrations/goto/version:
-	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) goto $(filter-out $@,$(MAKECMDGOALS))
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(MIGRATIONS_DSN) goto $(filter-out $@,$(MAKECMDGOALS))
 
 # show current migration version
 .PHONY: db/migrations/version
 db/migrations/version:
-	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) version
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(MIGRATIONS_DSN) version
 
 # Used for cleaning a dirty database.
 # 1st: Manually roll back partial changes to DB - i.e. fix errors in migration in question. 
 # 2nd: Run the below rule with the DB version you want. # eg: migrate -path=./migrations -database=$EXAMPLE_DSN force 1
 .PHONY: db/migrations/force
 db/migrations/force:
-	@migrate -path=$(MIGRATIONS_PATH) -database=$(GREENLIGHT_DB_DSN) force $(filter-out $@,$(MAKECMDGOALS))
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(MIGRATIONS_DSN) force ${version}
 
 .PHONY: db/populate
 db/populate:

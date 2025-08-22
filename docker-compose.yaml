@@ -1,19 +1,47 @@
 services:
   db:
     image: postgres:15.12-alpine3.21
-    container_name: ${GREENLIGHT_DB_CONTAINER_NAME}
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+        interval: 10s
+        retries: 5
+        start_period: 30s
+        timeout: 10s
     environment:
-      POSTGRES_PASSWORD: postgres # Required for the default `postgres` user
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    env_file:
+      - .env
     volumes:
       - v3-greenlight-pgdb:/var/lib/postgresql/data
       - ./scripts/init.db.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${DB_ACCESS_PORT}:5432"
     networks:
-      - greenlight
+      - greenlight-network
+
+  api:
+    build:
+      context: .
+      args:
+        # Pass the Git hash as a build argument
+        GIT_HASH: ${GIT_HASH:-$(git rev-parse --short HEAD)}
+    container_name: greenlight-api
+    env_file:
+      - .env
+    ports:
+      - "4001:${GREENLIGHT_API_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    networks:
+      - greenlight-network
 
 volumes:
   v3-greenlight-pgdb:
   
 networks:
-  greenlight:
+  greenlight-network:
+    driver: bridge

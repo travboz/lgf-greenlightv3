@@ -1,0 +1,27 @@
+# Binaries
+bin/
+**/bin/
+
+# Dependencies (you don’t need vendor if your Dockerfile does `go mod download`)
+vendor/
+
+# Git / VCS
+.gitignore
+
+# Local configs
+*.env
+.env.*
+*.local
+
+# Build / tooling
+.DS_Store
+*.out
+*.log
+
+# Tests
+**/*_test.go
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
