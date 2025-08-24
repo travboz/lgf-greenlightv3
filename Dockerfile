@@ -36,7 +36,7 @@ COPY . .
 # Compile application during build rather than at runtime
 # Add flags to statically link binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-w -s -X 'main.vcs.revision=$GIT_HASH'" \
+    -ldflags="-w -s" \
     -buildvcs=true \
     -o greenlight-api-binary ./cmd/api
 
