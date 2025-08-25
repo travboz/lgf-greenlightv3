@@ -26,7 +26,8 @@ services:
       context: .
       args:
         # Pass the Git hash as a build argument
-        GIT_HASH: ${GIT_HASH:-$(git rev-parse --short HEAD)}
+        GIT_HASH: ${GIT_HASH}
+
     container_name: greenlight-api
     env_file:
       - .env

@@ -33,11 +33,14 @@ RUN addgroup -g 1001 -S appgroup && \
 # Copy the remaining files over
 COPY . .
 
+# Declare build arg
+ARG GIT_HASH
+
 # Compile application during build rather than at runtime
 # Add flags to statically link binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-w -s" \
-    -buildvcs=true \
+    -ldflags="-w -s -X github.com/travboz/greenlightv3/internal/vcs.revision=${GIT_HASH}" \
+    -buildvcs=false \
     -o greenlight-api-binary ./cmd/api
 
 FROM scratch

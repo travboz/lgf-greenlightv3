@@ -66,7 +66,7 @@ show/dsn:
 .PHONY: compose/up
 compose/up:	
 	@echo "Starting containers..."
-	docker compose up -d --build
+	GIT_HASH=$$(git rev-parse HEAD) docker compose up -d --build
 
 ## compose/down: run docker compose down for all the services
 .PHONY: compose/down
