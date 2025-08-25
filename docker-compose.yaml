@@ -25,8 +25,8 @@ services:
     build:
       context: .
       args:
-        # Pass the Git hash as a build argument
         GIT_HASH: ${GIT_HASH}
+        GIT_DIRTY: ${GIT_DIRTY}
 
     container_name: greenlight-api
     env_file:

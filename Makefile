@@ -64,17 +64,17 @@ show/dsn:
 
 ## compose/up: run docker compose up for all the services
 .PHONY: compose/up
-compose/up:	
+compose/up:
 	@echo "Starting containers..."
-	GIT_HASH=$$(git rev-parse HEAD) docker compose up -d --build
+	GIT_HASH=$$(git rev-parse HEAD) \
+	GIT_DIRTY=$$(test -n "$$(git status --porcelain)" && echo true || echo false) \
+	docker compose up -d --build
 
 ## compose/down: run docker compose down for all the services
 .PHONY: compose/down
 compose/down:
 	@echo "Stopping containers..."
 	@docker compose down -v
-
-
 
 ## docker/container/connect/pgdb: connect to the postgres docker container and run a bash instanc
 .PHONY: docker/container/connect/pgdb

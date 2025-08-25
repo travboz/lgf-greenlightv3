@@ -35,11 +35,19 @@ COPY . .
 
 # Declare build arg
 ARG GIT_HASH
+ARG GIT_DIRTY
 
 # Compile application during build rather than at runtime
 # Add flags to statically link binary
+# RUN CGO_ENABLED=0 GOOS=linux go build \
+#     -ldflags="-w -s -X github.com/travboz/greenlightv3/internal/vcs.revision=${GIT_HASH}" \
+#     -buildvcs=false \
+#     -o greenlight-api-binary ./cmd/api
+
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-w -s -X github.com/travboz/greenlightv3/internal/vcs.revision=${GIT_HASH}" \
+    -ldflags="-w -s \
+        -X github.com/travboz/greenlightv3/internal/vcs.revision=${GIT_HASH} \
+        -X github.com/travboz/greenlightv3/internal/vcs.dirty=${GIT_DIRTY}" \
     -buildvcs=false \
     -o greenlight-api-binary ./cmd/api
 
