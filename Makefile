@@ -76,7 +76,10 @@ compose/down:
 	@echo "Stopping containers..."
 	@docker compose down -v
 
-## docker/container/connect/pgdb: connect to the postgres docker container and run a bash instanc
+.PHONY: compose/restart
+compose/restart: compose/down compose/up
+
+## docker/container/connect/pgdb: connect to the postgres docker container and run a bash instance
 .PHONY: docker/container/connect/pgdb
 docker/container/connect/pgdb:
 	@echo "Connecting to postgres container via shell.."
